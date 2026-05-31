@@ -1,4 +1,4 @@
-# AimiliVPN 🌐
+# micromatrix-vpn 🌐
 
 Bilingual: [中文](#中文) | [English](#english)
 
@@ -14,7 +14,7 @@ Bilingual: [中文](#中文) | [English](#english)
 
 ---
 
-**AimiliVPN** 是一个专为 Linux VPS 设计的智能 VPN 代理网关管理器。它能够自动采集 VPNGate 开放节点，进行多线程可用性测试与延迟过滤，利用 OpenVPN 隧道与策略路由（Policy Routing）实现出站网络，并在本地提供高性能的 HTTP/SOCKS5 代理网关服务，适合用作 Xray / 3x-ui 的落地出站代理。
+**micromatrix-vpn** 是一个专为 Linux VPS 设计的智能 VPN 代理网关管理器。它能够自动采集 VPNGate 开放节点，进行多线程可用性测试与延迟过滤，利用 OpenVPN 隧道与策略路由（Policy Routing）实现出站网络，并在本地提供高性能的 HTTP/SOCKS5 代理网关服务，适合用作 Xray / 3x-ui 的落地出站代理。
 
 ---
 
@@ -82,7 +82,7 @@ Docker 部署需要 Linux 主机提供 `/dev/net/tun`，并授予容器 `NET_ADM
 
 ---
 
-**AimiliVPN** is an intelligent VPN proxy gateway manager designed for Linux VPS hosts. It automatically collects open VPNGate nodes, conducts multi-threaded availability testing and latency filtering, establishes secure out-of-band routing via OpenVPN and policy routing to **prevent VPS lockouts**, and hosts a high-performance local SOCKS5/HTTP proxy gateway. It is highly optimized to serve as a residential/unlocked egress node for upstream proxies like 3x-ui / Xray.
+**micromatrix-vpn** is an intelligent VPN proxy gateway manager designed for Linux VPS hosts. It automatically collects open VPNGate nodes, conducts multi-threaded availability testing and latency filtering, establishes secure out-of-band routing via OpenVPN and policy routing to **prevent VPS lockouts**, and hosts a high-performance local SOCKS5/HTTP proxy gateway. It is highly optimized to serve as a residential/unlocked egress node for upstream proxies like 3x-ui / Xray.
 
 ### ✨ Key Features
 

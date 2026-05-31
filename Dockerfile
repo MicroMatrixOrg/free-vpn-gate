@@ -14,7 +14,7 @@ RUN apt-get update -q && \
         python3 && \
     rm -rf /var/lib/apt/lists/*
 
-WORKDIR /opt/aimilivpn
+WORKDIR /opt/micromatrix-vpn
 
 COPY vpngate_manager.py proxy_server.py vpn_utils.py ./
 

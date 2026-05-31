@@ -30,18 +30,18 @@ git push origin v1.0.0
 
 ```bash
 # 最新版本
-docker pull ghcr.io/<your-org>/aimili-vpngate:latest
+docker pull ghcr.io/<your-org>/micromatrix-vpn:latest
 
 # 指定版本
-docker pull ghcr.io/<your-org>/aimili-vpngate:1.2.3
+docker pull ghcr.io/<your-org>/micromatrix-vpn:1.2.3
 ```
 
 ### 使用 docker-compose 指定版本
 
 ```yaml
 services:
-  aimilivpn:
-    image: ghcr.io/<your-org>/aimili-vpngate:latest  # 或指定版本如 1.2.3
+  micromatrix-vpn:
+    image: ghcr.io/<your-org>/micromatrix-vpn:latest  # 或指定版本如 1.2.3
     network_mode: host
     ...
 ```

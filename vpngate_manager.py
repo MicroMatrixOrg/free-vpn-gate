@@ -231,7 +231,7 @@ def load_ui_config() -> dict[str, Any]:
         return config
 
 def get_session_token(password: str, username: str = "admin") -> str:
-    salt = "aimilivpn_secure_salt_2026"
+    salt = "micromatrix_vpn_secure_salt_2026"
     return hashlib.sha256((username + ":" + password + salt).encode("utf-8")).hexdigest()
 
 def cleanup_old_logs(logs_dir: Path) -> None:
@@ -504,7 +504,7 @@ def kill_existing_openvpn_processes() -> None:
         # Terminate existing openvpn processes managing tun0 or using our vpngate configuration
         subprocess.run(["pkill", "-f", "openvpn.*tun0"], capture_output=True, timeout=2)
         subprocess.run(["pkill", "-f", "openvpn.*vpngate_data"], capture_output=True, timeout=2)
-        print("[Cleanup] Terminated existing AimiliVPN OpenVPN processes.", flush=True)
+        print("[Cleanup] Terminated existing micromatrix-vpn OpenVPN processes.", flush=True)
     except Exception as e:
         print(f"[Cleanup Error] Failed to kill existing OpenVPN processes: {e}", flush=True)
 
@@ -1112,7 +1112,7 @@ LOGIN_HTML = r"""<!DOCTYPE html>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AimiliVPN - 安全登录</title>
+  <title>micromatrix-vpn - 安全登录</title>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <style>
     :root {
@@ -1299,7 +1299,7 @@ LOGIN_HTML = r"""<!DOCTYPE html>
           <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
         </svg>
       </div>
-      <h2 class="login-title">AimiliVPN</h2>
+      <h2 class="login-title">micromatrix-vpn</h2>
       <p class="login-subtitle">请输入您的管理账号和安全密码以继续</p>
       
       <form id="login_form" onsubmit="handleLogin(event)">
@@ -1369,7 +1369,7 @@ INDEX_HTML = r"""<!doctype html>
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>AimiliVPN 节点池管理系统</title>
+  <title>micromatrix-vpn 节点池管理系统</title>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
     
@@ -2037,7 +2037,7 @@ INDEX_HTML = r"""<!doctype html>
   <div class="brand">
     <h1>
       <svg xmlns="http://www.w3.org/2000/svg" style="width:24px; height:24px; color:#818cf8;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
-      AimiliVPN 节点管理系统
+      micromatrix-vpn 节点管理系统
     </h1>
     <div id="status" class="status"><span class="status-dot"></span>服务加载中...</div>
   </div>
