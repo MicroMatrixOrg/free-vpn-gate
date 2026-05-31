@@ -2,7 +2,7 @@ services:
   micromatrix-vpn:
     build:
       context: .
-    image: ghcr.io/micromatrixorg/free-vpn-gate:0.3
+    image: ghcr.io/micromatrixorg/free-vpn-gate:latest
     ports:
       - "${UI_BIND_HOST:-0.0.0.0}:${UI_PORT:-8787}:${UI_PORT:-8787}"                 # Web 管理后台
       - "${LOCAL_PROXY_BIND_HOST:-127.0.0.1}:${LOCAL_PROXY_PORT:-7928}:${LOCAL_PROXY_PORT:-7928}" # 本地代理仅默认绑定宿主机回环地址
@@ -22,6 +22,8 @@ services:
       - UI_USERNAME=${UI_USERNAME:-}
       - UI_PASSWORD=${UI_PASSWORD:-}
       - UI_SECRET_PATH=${UI_SECRET_PATH:-}
+      - PREFERRED_COUNTRY=${PREFERRED_COUNTRY:-}
+      - PREFERRED_NODE_TYPE=${PREFERRED_NODE_TYPE:-}
       # 可选：通过上游代理连接 VPN（如果宿主机已有其他代理）
       # - OPENVPN_UPSTREAM_SOCKS=${OPENVPN_UPSTREAM_SOCKS:-127.0.0.1:10808}
     restart: unless-stopped

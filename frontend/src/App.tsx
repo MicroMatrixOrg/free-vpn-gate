@@ -37,6 +37,8 @@ type ApiState = {
   proxy_ip?: string;
   proxy_latency_ms?: number;
   proxy_ok?: boolean;
+  preferred_country?: string;
+  preferred_node_type?: string;
   secret_path?: string;
   target_valid_nodes?: number;
   username?: string;
@@ -121,10 +123,19 @@ function statusClass(node: NodeItem) {
 
 function qualityLabel(value?: string) {
   if (!value) return "-";
-  if (value === "datacenter") return "机房";
+  if (value === "residential" || value === "normal") return "住宅";
+  if (value === "hosting" || value === "datacenter") return "机房";
   if (value === "mobile") return "移动";
   if (value === "proxy") return "代理";
   return value;
+}
+
+function nodeEndpoint(node?: NodeItem) {
+  if (!node) return "";
+  const host = node.ip || node.remote_host;
+  const port = node.remote_port;
+  if (host && port) return `${host}:${port}`;
+  return host || node.id;
 }
 
 function sortNodes(nodes: NodeItem[]) {
@@ -228,6 +239,8 @@ function SettingsDialog({
 }) {
   const [port, setPort] = useState(String(state.port || 8787));
   const [secretPath, setSecretPath] = useState(state.secret_path || "");
+  const [preferredCountry, setPreferredCountry] = useState(state.preferred_country || "");
+  const [preferredNodeType, setPreferredNodeType] = useState(state.preferred_node_type || "");
   const [currentUsername, setCurrentUsername] = useState(state.username || "");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newUsername, setNewUsername] = useState("");
@@ -238,18 +251,20 @@ function SettingsDialog({
     event.preventDefault();
     setBusy(true);
     try {
-      await requestJson<{ ok: boolean; message?: string }>("update_settings", {
+      const result = await requestJson<{ ok: boolean; message?: string; restart_required?: boolean }>("update_settings", {
         method: "POST",
         body: JSON.stringify({
           curr_username: currentUsername,
           curr_password: currentPassword,
           port,
           secret_path: secretPath,
+          preferred_country: preferredCountry,
+          preferred_node_type: preferredNodeType,
           new_username: newUsername,
           new_password: newPassword
         })
       });
-      onNotice({ type: "success", text: "配置已保存，服务即将重启" });
+      onNotice({ type: "success", text: result.message || "配置已保存" });
       onClose();
     } catch (err) {
       onNotice({ type: "error", text: err instanceof Error ? err.message : "保存失败" });
@@ -277,6 +292,20 @@ function SettingsDialog({
           <label>
             <span>安全路径</span>
             <input value={secretPath} onChange={(event) => setSecretPath(event.target.value)} />
+          </label>
+          <label>
+            <span>偏好地区</span>
+            <input value={preferredCountry} onChange={(event) => setPreferredCountry(event.target.value)} />
+          </label>
+          <label>
+            <span>偏好类型</span>
+            <select value={preferredNodeType} onChange={(event) => setPreferredNodeType(event.target.value)}>
+              <option value="">不限类型</option>
+              <option value="residential">住宅</option>
+              <option value="proxy">代理</option>
+              <option value="hosting">机房</option>
+              <option value="mobile">移动</option>
+            </select>
           </label>
           <label>
             <span>当前账号</span>
@@ -327,6 +356,7 @@ export function App() {
   const [query, setQuery] = useState("");
   const [country, setCountry] = useState("all");
   const [status, setStatus] = useState("all");
+  const [nodeType, setNodeType] = useState("all");
   const [page, setPage] = useState(1);
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [testingIds, setTestingIds] = useState<Set<string>>(new Set());
@@ -365,9 +395,15 @@ export function App() {
     [nodes]
   );
 
+  const nodeTypes = useMemo(() => {
+    const values = Array.from(new Set(nodes.map((node) => node.ip_type || node.quality).filter(Boolean))) as string[];
+    return values.sort((a, b) => qualityLabel(a).localeCompare(qualityLabel(b), "zh-CN"));
+  }, [nodes]);
+
   const filteredNodes = useMemo(() => {
     const needle = query.trim().toLowerCase();
     return sortNodes(nodes).filter((node) => {
+      const typeValue = node.ip_type || node.quality || "";
       const matchesQuery =
         !needle ||
         [node.id, node.country, node.ip, node.remote_host, node.owner, node.location, node.as_name]
@@ -378,9 +414,10 @@ export function App() {
         status === "all" ||
         (status === "active" && node.active) ||
         (status !== "active" && node.probe_status === status);
-      return matchesQuery && matchesCountry && matchesStatus;
+      const matchesType = nodeType === "all" || typeValue === nodeType;
+      return matchesQuery && matchesCountry && matchesStatus && matchesType;
     });
-  }, [country, nodes, query, status]);
+  }, [country, nodeType, nodes, query, status]);
 
   const totalPages = Math.max(1, Math.ceil(filteredNodes.length / PAGE_SIZE));
   const visibleNodes = filteredNodes.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
@@ -389,7 +426,7 @@ export function App() {
 
   useEffect(() => {
     setPage(1);
-  }, [query, country, status]);
+  }, [query, country, status, nodeType]);
 
   async function runAction(name: string, action: () => Promise<void>) {
     setBusyAction(name);
@@ -457,7 +494,6 @@ export function App() {
           </div>
           <div>
             <h1>micromatrix-vpn</h1>
-            <span>{state.local_proxy || "127.0.0.1:7928"}</span>
           </div>
         </div>
         <div className="toolbar">
@@ -503,7 +539,7 @@ export function App() {
       <section className="active-panel">
         <div>
           <span className="eyebrow">活动节点</span>
-          <h2>{activeNode?.id || "无活动连接"}</h2>
+          <h2>{nodeEndpoint(activeNode) || "无活动连接"}</h2>
           <p>{state.last_check_message || activeNode?.probe_message || "等待节点状态更新"}</p>
         </div>
         <div className="active-meta">
@@ -588,6 +624,14 @@ export function App() {
               <option value="not_checked">待检测</option>
               <option value="unavailable">不可用</option>
             </select>
+            <select value={nodeType} onChange={(event) => setNodeType(event.target.value)}>
+              <option value="all">全部类型</option>
+              {nodeTypes.map((item) => (
+                <option key={item} value={item}>
+                  {qualityLabel(item)}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
 
@@ -620,7 +664,7 @@ export function App() {
                     </td>
                     <td>{formatLatency(node.latency_ms || node.ping)}</td>
                     <td>{formatSpeed(node.speed)}</td>
-                    <td>{qualityLabel(node.quality || node.ip_type)}</td>
+                    <td>{qualityLabel(node.ip_type || node.quality)}</td>
                     <td>
                       <span>{node.owner || node.as_name || "-"}</span>
                       <span className="muted">{node.location || node.asn || ""}</span>

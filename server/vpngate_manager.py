@@ -190,7 +190,9 @@ def load_ui_config() -> dict[str, Any]:
             "secret_path": "EJsW2EeBo9lY",
             "password": "",
             "host": UI_HOST,
-            "port": UI_PORT
+            "port": UI_PORT,
+            "preferred_country": "",
+            "preferred_node_type": ""
         }
         updated = False
         if auth_file.exists():
@@ -207,12 +209,18 @@ def load_ui_config() -> dict[str, Any]:
             "secret_path": _env_override("UI_SECRET_PATH"),
             "host": _env_override("UI_HOST"),
             "port": _env_override("UI_PORT"),
+            "preferred_country": _env_override("PREFERRED_COUNTRY"),
+            "preferred_node_type": _env_override("PREFERRED_NODE_TYPE"),
         }
         for key, val in env_map.items():
             if val is None:
                 continue
             if key == "secret_path" and not re.match(r"^[A-Za-z0-9]+$", val):
                 continue
+            if key == "preferred_node_type":
+                val = normalize_node_type(val)
+                if val not in ("", "residential", "proxy", "hosting", "mobile"):
+                    continue
             if key == "port":
                 try:
                     parsed_port = int(val)
@@ -224,6 +232,17 @@ def load_ui_config() -> dict[str, Any]:
             if config.get(key) != val:
                 config[key] = val
                 updated = True
+
+        preferred_country = str(config.get("preferred_country") or "").strip()
+        preferred_node_type = normalize_node_type(config.get("preferred_node_type"))
+        if preferred_node_type not in ("", "residential", "proxy", "hosting", "mobile"):
+            preferred_node_type = ""
+        if config.get("preferred_country") != preferred_country:
+            config["preferred_country"] = preferred_country
+            updated = True
+        if config.get("preferred_node_type") != preferred_node_type:
+            config["preferred_node_type"] = preferred_node_type
+            updated = True
         
         if not config.get("username"):
             config["username"] = generate_random_username()
@@ -309,6 +328,8 @@ def get_state() -> dict[str, Any]:
     state["username"] = ui_cfg.get("username", "admin")
     state["port"] = ui_cfg.get("port", 8787)
     state["secret_path"] = ui_cfg.get("secret_path", "EJsW2EeBo9lY")
+    state["preferred_country"] = ui_cfg.get("preferred_country", "")
+    state["preferred_node_type"] = ui_cfg.get("preferred_node_type", "")
     
     return state
 
@@ -347,6 +368,39 @@ def load_blacklist() -> dict[str, dict[str, Any]]:
 
 def mark_blacklisted(node: dict[str, Any], message: str) -> None:
     pass
+
+def normalize_node_type(value: Any) -> str:
+    text = str(value or "").strip().lower()
+    if text in ("residential", "normal", "住宅"):
+        return "residential"
+    if text in ("proxy", "代理"):
+        return "proxy"
+    if text in ("hosting", "datacenter", "机房"):
+        return "hosting"
+    if text in ("mobile", "移动"):
+        return "mobile"
+    return text
+
+def node_type_value(node: dict[str, Any]) -> str:
+    return normalize_node_type(node.get("ip_type") or node.get("quality"))
+
+def node_matches_country(node: dict[str, Any], preferred_country: str) -> bool:
+    country = preferred_country.strip().lower()
+    if not country:
+        return False
+    values = [
+        str(node.get("country") or ""),
+        str(node.get("country_short") or ""),
+        str(node.get("location") or ""),
+    ]
+    return any(country == item.strip().lower() or country in item.strip().lower() for item in values if item)
+
+def auto_switch_sort_key(node: dict[str, Any], preferred_country: str, preferred_node_type: str) -> tuple[int, int, int, int, int]:
+    country_miss = 1 if preferred_country and not node_matches_country(node, preferred_country) else 0
+    type_miss = 1 if preferred_node_type and node_type_value(node) != preferred_node_type else 0
+    latency = parse_int(node.get("latency_ms")) or parse_int(node.get("ping")) or 999999
+    score = parse_int(node.get("score"))
+    return (country_miss + type_miss, country_miss, type_miss, latency, -score)
 
 def row_to_node(row: dict[str, str], config_text: str) -> dict[str, Any]:
     ip = row.get("IP", "")
@@ -865,6 +919,9 @@ def auto_switch_node(attempt: int = 0) -> None:
         return
         
     # Find the next best available node
+    ui_cfg = load_ui_config()
+    preferred_country = str(ui_cfg.get("preferred_country") or "").strip()
+    preferred_node_type = normalize_node_type(ui_cfg.get("preferred_node_type") or "")
     with lock:
         nodes = read_json(NODES_FILE, [])
         candidates = [
@@ -872,7 +929,7 @@ def auto_switch_node(attempt: int = 0) -> None:
             if n.get("probe_status") == "available" 
             and not n.get("active")
         ]
-        candidates.sort(key=lambda n: (parse_int(n.get("latency_ms")) or 999999, -parse_int(n.get("score"))))
+        candidates.sort(key=lambda n: auto_switch_sort_key(n, preferred_country, preferred_node_type))
         
     if candidates:
         next_node = candidates[0]
@@ -1508,6 +1565,8 @@ class Handler(BaseHTTPRequestHandler):
                 new_suffix = str(payload.get("secret_path") or "").strip()
                 new_username = str(payload.get("new_username") or "").strip()
                 new_password = str(payload.get("new_password") or "").strip()
+                new_preferred_country = str(payload.get("preferred_country") or "").strip()
+                new_preferred_node_type = normalize_node_type(payload.get("preferred_node_type") or "")
                 
                 if not curr_username or not curr_password:
                     self.send_json({"ok": False, "error": "请输入当前账号和密码进行安全验证"}, HTTPStatus.FORBIDDEN)
@@ -1532,9 +1591,20 @@ class Handler(BaseHTTPRequestHandler):
                 if not new_suffix or not re.match(r"^[A-Za-z0-9]+$", new_suffix):
                     self.send_json({"ok": False, "error": "安全后缀仅能由英文字母和数字组成"}, HTTPStatus.BAD_REQUEST)
                     return
+                if new_preferred_node_type not in ("", "residential", "proxy", "hosting", "mobile"):
+                    self.send_json({"ok": False, "error": "节点类型偏好无效"}, HTTPStatus.BAD_REQUEST)
+                    return
                 
+                restart_required = (
+                    new_port_int != parse_int(ui_cfg.get("port")) or
+                    new_suffix != str(ui_cfg.get("secret_path") or "") or
+                    bool(new_username) or
+                    bool(new_password)
+                )
                 ui_cfg["port"] = new_port_int
                 ui_cfg["secret_path"] = new_suffix
+                ui_cfg["preferred_country"] = new_preferred_country
+                ui_cfg["preferred_node_type"] = new_preferred_node_type
                 if new_username:
                     ui_cfg["username"] = new_username
                 if new_password:
@@ -1544,15 +1614,18 @@ class Handler(BaseHTTPRequestHandler):
                 with lock:
                     DATA_DIR.mkdir(exist_ok=True, parents=True)
                     auth_file.write_text(json.dumps(ui_cfg, ensure_ascii=False, indent=2), encoding="utf-8")
-                
-                self.send_json({"ok": True, "message": "配置更新成功，系统将在 2 秒内重启..."})
-                
-                def restart_server():
-                    time.sleep(2)
-                    print("[系统] 管理后台配置更新，进程即将退出以触发自动重启...", flush=True)
-                    os._exit(0)
-                
-                threading.Thread(target=restart_server, daemon=True).start()
+
+                if restart_required:
+                    self.send_json({"ok": True, "restart_required": True, "message": "配置更新成功，系统将在 2 秒内重启..."})
+
+                    def restart_server():
+                        time.sleep(2)
+                        print("[系统] 管理后台配置更新，进程即将退出以触发自动重启...", flush=True)
+                        os._exit(0)
+
+                    threading.Thread(target=restart_server, daemon=True).start()
+                else:
+                    self.send_json({"ok": True, "restart_required": False, "message": "偏好设置已保存，自动切换将按新策略执行"})
             except Exception as exc:
                 self.send_json({"ok": False, "error": str(exc)}, HTTPStatus.INTERNAL_SERVER_ERROR)
             return

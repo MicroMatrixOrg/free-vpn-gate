@@ -6,11 +6,6 @@ Bilingual: [中文](#中文) | [English](#english)
 
 ## 中文
 
-[![Telegram](https://img.shields.io/badge/TG交流群-arestemple-2CA5E0?style=flat-square&logo=telegram&logoColor=white)](https://t.me/arestemple)
-[![Forum](https://img.shields.io/badge/交流论坛-339936.xyz-orange?style=flat-square&logo=discourse&logoColor=white)](https://339936.xyz)
-[![YouTube](https://img.shields.io/badge/视频教程-YouTube-red?style=flat-square&logo=youtube&logoColor=white)](https://www.youtube.com/watch?v=s-ATfXR8BpI)
-[![Email](https://img.shields.io/badge/Bug反馈-yaohunse7@gmail.com-red?style=flat-square&logo=gmail&logoColor=white)](mailto:yaohunse7@gmail.com)
-
 
 ---
 
@@ -36,8 +31,12 @@ docker compose up -d --build
 * `UI_HOST` / `UI_PORT`：管理后台监听地址和端口
 * `UI_BIND_HOST`：宿主机上的 Web 端口绑定地址，VPS 公开访问可用 `0.0.0.0`，仅本机访问可用 `127.0.0.1`
 * `LOCAL_PROXY_BIND_HOST`：宿主机上的代理端口绑定地址，默认 `127.0.0.1`
+* `PREFERRED_COUNTRY`：当前节点失效自动切换时优先匹配的地区，可填 `日本` / `JP`；留空则不限制地区
+* `PREFERRED_NODE_TYPE`：自动切换时优先匹配的节点类型，支持 `residential` / `proxy` / `hosting` / `mobile`，也支持 `住宅` / `代理` / `机房` / `移动`
 
 设置了这些环境变量后，容器启动时会同步写入 `./vpn_data/ui_auth.json`。如果之后修改 `.env`，重启容器即可生效；`.env` 中的值优先于 Web UI 中保存的同名配置。
+
+当当前 OpenVPN 节点失效或代理出口检测失败时，系统会从已检测可用的 OpenVPN 节点中自动切换。设置偏好后会优先选择同时匹配地区和节点类型的节点，然后按延迟最低排序；不设置偏好时默认选择延迟最低的可用节点。
 
 默认服务地址：
 
@@ -87,13 +86,13 @@ pnpm build
     (国内直连流量)                                               (解锁流媒体、锁区网站)
 ```
 
+## 参考
+https://raw.githubusercontent.com/baoweise-bot/aimili-vpngate
+
 ---
 
 ## English
 
-[![Telegram](https://img.shields.io/badge/Telegram-arestemple-2CA5E0?style=flat-square&logo=telegram&logoColor=white)](https://t.me/arestemple)
-[![Forum](https://img.shields.io/badge/Forum-339936.xyz-orange?style=flat-square&logo=discourse&logoColor=white)](https://339936.xyz)
-[![Email](https://img.shields.io/badge/Bug%20Report-yaohunse7@gmail.com-red?style=flat-square&logo=gmail&logoColor=white)](mailto:yaohunse7@gmail.com)
 
 ---
 
@@ -136,8 +135,12 @@ The Web UI credentials and secret path can be configured in `.env`:
 * `UI_HOST` / `UI_PORT`: Web console bind host and port
 * `UI_BIND_HOST`: host-side Web port bind address. Use `0.0.0.0` for public VPS access or `127.0.0.1` for local-only access
 * `LOCAL_PROXY_BIND_HOST`: host-side proxy port bind address, defaults to `127.0.0.1`
+* `PREFERRED_COUNTRY`: preferred country for auto-switching when the active node fails, for example `Japan` or `JP`; leave empty for no country preference
+* `PREFERRED_NODE_TYPE`: preferred node type for auto-switching. Supported values are `residential`, `proxy`, `hosting`, and `mobile`
 
 These environment values are synced into `./vpn_data/ui_auth.json` when the container starts. Restart the container after editing `.env`; values from `.env` take precedence over matching settings saved from the Web UI.
+
+When the active OpenVPN node fails or the proxy health check fails, the service switches to another tested OpenVPN node automatically. With preferences configured, nodes matching both the country and type are selected first, then the lowest latency wins; without preferences, the default strategy is lowest-latency available node.
 
 Default endpoints:
 
@@ -168,3 +171,6 @@ cd frontend
 pnpm install
 pnpm build
 ```
+
+## Refer
+https://raw.githubusercontent.com/baoweise-bot/aimili-vpngate
