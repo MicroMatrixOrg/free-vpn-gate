@@ -374,8 +374,12 @@ button:disabled {
 
 .filters {
   display: grid;
-  grid-template-columns: minmax(220px, 320px) 150px 130px 130px;
+  grid-template-columns: minmax(220px, 320px) 150px 130px 130px 118px;
   gap: 10px;
+}
+
+.filter-action {
+  white-space: nowrap;
 }
 
 .search-box {

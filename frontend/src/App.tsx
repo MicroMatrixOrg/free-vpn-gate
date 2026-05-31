@@ -466,6 +466,36 @@ export function App() {
     }
   }
 
+  async function testCurrentPage() {
+    const ids = visibleNodes.map((node) => node.id);
+    if (!ids.length) return;
+
+    await runAction("test-page", async () => {
+      setTestingIds((current) => {
+        const next = new Set(current);
+        ids.forEach((id) => next.add(id));
+        return next;
+      });
+
+      try {
+        const result = await requestJson<{ nodes: NodeItem[] }>("test_nodes", {
+          method: "POST",
+          body: JSON.stringify({ ids })
+        });
+        const updates = new Map<string, NodeItem>();
+        (result.nodes || []).forEach((node) => updates.set(node.id, node));
+        setNodes((current) => current.map((node) => updates.get(node.id) || node));
+        setNotice({ type: "success", text: `当前页检测完成：${updates.size} 个节点` });
+      } finally {
+        setTestingIds((current) => {
+          const next = new Set(current);
+          ids.forEach((id) => next.delete(id));
+          return next;
+        });
+      }
+    });
+  }
+
   async function logout() {
     await runAction("logout", async () => {
       await requestJson("logout", { method: "POST" });
@@ -632,6 +662,14 @@ export function App() {
                 </option>
               ))}
             </select>
+            <button
+              className="secondary-action filter-action"
+              onClick={testCurrentPage}
+              disabled={busyAction !== null || visibleNodes.length === 0}
+            >
+              {busyAction === "test-page" ? <Loader2 className="spin" size={15} /> : <Activity size={15} />}
+              检测本页
+            </button>
           </div>
         </div>
 
