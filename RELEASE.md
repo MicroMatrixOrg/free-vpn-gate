@@ -45,3 +45,9 @@ services:
     network_mode: host
     ...
 ```
+
+## 设置转发
+
+```bash
+sysctl net.ipv4.ip_forward
+```

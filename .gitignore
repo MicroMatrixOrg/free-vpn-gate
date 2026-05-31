@@ -17,9 +17,14 @@ __pycache__/
 
 # Local runtime data folders
 vpngate_data/
+vpn_data/
 logs/
 *.log
 *.tmp
+
+# Local Docker Compose secrets
+.env
+.env.local
 
 # IDE settings
 .vscode/
@@ -34,4 +39,3 @@ scratch/
 
 # Local analysis and doc files
 AimiliVPN_Analysis_ZH.md
-

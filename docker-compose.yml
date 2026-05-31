@@ -1,37 +1,27 @@
 services:
   aimilivpn:
-    build: .
-    container_name: aimilivpn
-    network_mode: host          # 与宿主机共享网络栈，3x-ui 可通过 127.0.0.1:7928 直接访问代理
+    build:
+      context: .
+    image: ghcr.io/micromatrixorg/free-vpn-gate:latest
+    ports:
+      - "${UI_BIND_HOST:-0.0.0.0}:${UI_PORT:-8787}:${UI_PORT:-8787}"                 # Web 管理后台
+      - "${LOCAL_PROXY_BIND_HOST:-127.0.0.1}:${LOCAL_PROXY_PORT:-7928}:${LOCAL_PROXY_PORT:-7928}" # 本地代理仅默认绑定宿主机回环地址
     cap_add:
       - NET_ADMIN               # OpenVPN 创建 tun 网卡必须
       - SYS_MODULE              # 加载内核模块（部分系统需要）
     devices:
       - /dev/net/tun:/dev/net/tun   # TUN 设备，OpenVPN 必须
     volumes:
-      - aimilivpn_data:/data    # 持久化节点缓存、认证配置、日志
+      - ./vpn_data:/data    # 持久化节点缓存、认证配置、日志
     environment:
       - VPNGATE_DATA_DIR=/data
-      - LOCAL_PROXY_HOST=127.0.0.1
-      - LOCAL_PROXY_PORT=7928
-      - UI_HOST=0.0.0.0
-      - UI_PORT=8787
+      - LOCAL_PROXY_HOST=${LOCAL_PROXY_HOST:-0.0.0.0}
+      - LOCAL_PROXY_PORT=${LOCAL_PROXY_PORT:-7928}
+      - UI_HOST=${UI_HOST:-0.0.0.0}
+      - UI_PORT=${UI_PORT:-8787}
+      - UI_USERNAME=${UI_USERNAME:-}
+      - UI_PASSWORD=${UI_PASSWORD:-}
+      - UI_SECRET_PATH=${UI_SECRET_PATH:-}
       # 可选：通过上游代理连接 VPN（如果宿主机已有其他代理）
-      # - OPENVPN_UPSTREAM_SOCKS=127.0.0.1:10808
+      # - OPENVPN_UPSTREAM_SOCKS=${OPENVPN_UPSTREAM_SOCKS:-127.0.0.1:10808}
     restart: unless-stopped
-    sysctls:
-      - net.ipv4.ip_forward=1   # 允许 IP 转发（策略路由需要）
-
-  # 3x-ui 也使用 host 网络，与 aimilivpn 共享 127.0.0.1
-  # 在 3x-ui 的出站配置中将代理设为 socks5://127.0.0.1:7928 即可
-  # 3x-ui:
-  #   image: ghcr.io/mhsanaei/3x-ui:latest
-  #   container_name: 3x-ui
-  #   network_mode: host
-  #   volumes:
-  #     - 3xui_data:/etc/x-ui
-  #   restart: unless-stopped
-
-volumes:
-  aimilivpn_data:
-  # 3xui_data:

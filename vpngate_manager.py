@@ -163,6 +163,13 @@ def generate_random_username() -> str:
             if has_lower and has_upper and has_digit:
                 return uname
 
+def _env_override(name: str) -> str | None:
+    value = os.environ.get(name)
+    if value is None:
+        return None
+    value = value.strip()
+    return value or None
+
 def load_ui_config() -> dict[str, Any]:
     with lock:
         auth_file = DATA_DIR / "ui_auth.json"
@@ -170,8 +177,8 @@ def load_ui_config() -> dict[str, Any]:
             "username": "",
             "secret_path": "EJsW2EeBo9lY",
             "password": "",
-            "host": "0.0.0.0",
-            "port": 8787
+            "host": UI_HOST,
+            "port": UI_PORT
         }
         updated = False
         if auth_file.exists():
@@ -181,6 +188,30 @@ def load_ui_config() -> dict[str, Any]:
                     config[key] = val
             except Exception:
                 pass
+
+        env_map = {
+            "username": _env_override("UI_USERNAME"),
+            "password": _env_override("UI_PASSWORD"),
+            "secret_path": _env_override("UI_SECRET_PATH"),
+            "host": _env_override("UI_HOST"),
+            "port": _env_override("UI_PORT"),
+        }
+        for key, val in env_map.items():
+            if val is None:
+                continue
+            if key == "secret_path" and not re.match(r"^[A-Za-z0-9]+$", val):
+                continue
+            if key == "port":
+                try:
+                    parsed_port = int(val)
+                    if not (1 <= parsed_port <= 65535):
+                        continue
+                    val = parsed_port
+                except ValueError:
+                    continue
+            if config.get(key) != val:
+                config[key] = val
+                updated = True
         
         if not config.get("username"):
             config["username"] = generate_random_username()
@@ -3515,6 +3546,7 @@ def main() -> None:
     print(f"UI: http://{ui_host}:{ui_port}/", flush=True)
     print(f"Proxy: http://{LOCAL_PROXY_HOST}:{LOCAL_PROXY_PORT}", flush=True)
     ThreadingHTTPServer((ui_host, ui_port), Handler).serve_forever()
+
 
 if __name__ == "__main__":
     main()
