@@ -31,6 +31,8 @@ docker compose up -d --build
 * `UI_HOST` / `UI_PORT`：管理后台监听地址和端口
 * `UI_BIND_HOST`：宿主机上的 Web 端口绑定地址，VPS 公开访问可用 `0.0.0.0`，仅本机访问可用 `127.0.0.1`
 * `LOCAL_PROXY_BIND_HOST`：宿主机上的代理端口绑定地址，默认 `127.0.0.1`
+* `TARGET_VALID_NODES`：维护线程至少筛选出的可用 OpenVPN 节点数量，不足时会继续检测后续候选节点
+* `NODE_TEST_BATCH_SIZE`：每轮维护至少检测的候选节点数量，默认 `24`，与前端默认每页数量一致
 * `PREFERRED_COUNTRY`：当前节点失效自动切换时优先匹配的地区，可填 `日本` / `JP`；留空则不限制地区
 * `PREFERRED_NODE_TYPE`：自动切换时优先匹配的节点类型，支持 `residential` / `proxy` / `hosting` / `mobile`，也支持 `住宅` / `代理` / `机房` / `移动`
 
@@ -135,6 +137,8 @@ The Web UI credentials and secret path can be configured in `.env`:
 * `UI_HOST` / `UI_PORT`: Web console bind host and port
 * `UI_BIND_HOST`: host-side Web port bind address. Use `0.0.0.0` for public VPS access or `127.0.0.1` for local-only access
 * `LOCAL_PROXY_BIND_HOST`: host-side proxy port bind address, defaults to `127.0.0.1`
+* `TARGET_VALID_NODES`: minimum number of tested available OpenVPN nodes to keep for auto-switching; the service keeps probing candidates until this target is reached or candidates run out
+* `NODE_TEST_BATCH_SIZE`: minimum number of fresh candidates to test per maintenance run, defaults to `24` to match the default UI page size
 * `PREFERRED_COUNTRY`: preferred country for auto-switching when the active node fails, for example `Japan` or `JP`; leave empty for no country preference
 * `PREFERRED_NODE_TYPE`: preferred node type for auto-switching. Supported values are `residential`, `proxy`, `hosting`, and `mobile`
 

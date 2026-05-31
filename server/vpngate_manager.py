@@ -39,6 +39,7 @@ API_URL = "https://www.vpngate.net/api/iphone/"
 FETCH_INTERVAL_SECONDS = int(os.environ.get("FETCH_INTERVAL_SECONDS", "960"))
 CHECK_INTERVAL_SECONDS = int(os.environ.get("CHECK_INTERVAL_SECONDS", "960"))
 TARGET_VALID_NODES = int(os.environ.get("TARGET_VALID_NODES", "3"))
+NODE_TEST_BATCH_SIZE = int(os.environ.get("NODE_TEST_BATCH_SIZE", "24"))
 MAX_SCAN_ROWS = int(os.environ.get("MAX_SCAN_ROWS", "300"))
 OPENVPN_TEST_TIMEOUT_SECONDS = int(os.environ.get("OPENVPN_TEST_TIMEOUT_SECONDS", "35"))
 OPENVPN_CMD = os.environ.get("OPENVPN_CMD", "openvpn")
@@ -1126,15 +1127,47 @@ def maintain_valid_nodes(force: bool = False) -> str:
                         
             write_json(NODES_FILE, merged)
 
-        # Test the first 10 non-active nodes from the new list
-        with lock:
-            current_nodes = read_json(NODES_FILE, [])
-            to_test = [n for n in current_nodes if not n.get("active")][:10]
-            to_test_ids = [n["id"] for n in to_test]
-            
-        print(f"[维护线程] 正在检测新获取列表的前 10 个节点: {to_test_ids}", flush=True)
-        set_state(is_connecting=True, last_check_message="正在并发检测筛选可用节点，这可能需要 5-30 秒...")
-        test_multiple_nodes(to_test_ids)
+        target_valid_nodes = max(1, TARGET_VALID_NODES)
+        test_batch_size = max(1, NODE_TEST_BATCH_SIZE)
+        tested_total = 0
+        batch_no = 0
+        while True:
+            with lock:
+                current_nodes = read_json(NODES_FILE, [])
+                valid_nodes_count = len([n for n in current_nodes if n.get("probe_status") == "available"])
+                remaining_needed = max(0, target_valid_nodes - valid_nodes_count)
+                remaining_initial_page = max(0, test_batch_size - tested_total)
+                if remaining_needed <= 0 and remaining_initial_page <= 0:
+                    break
+
+                if remaining_initial_page > 0:
+                    batch_size = min(test_batch_size, max(1, remaining_needed, remaining_initial_page))
+                else:
+                    batch_size = test_batch_size
+                to_test = [
+                    n for n in current_nodes
+                    if not n.get("active") and n.get("probe_status") == "not_checked"
+                ][:batch_size]
+                to_test_ids = [n["id"] for n in to_test]
+
+            if not to_test_ids:
+                break
+
+            batch_no += 1
+            tested_total += len(to_test_ids)
+            print(
+                f"[维护线程] 目标可用节点 {target_valid_nodes}，当前 {valid_nodes_count}，"
+                f"每批最多 {test_batch_size} 个，正在检测第 {batch_no} 批 {len(to_test_ids)} 个节点: {to_test_ids}",
+                flush=True,
+            )
+            set_state(
+                is_connecting=True,
+                last_check_message=(
+                    f"正在筛选可用节点：目标 {target_valid_nodes} 个，"
+                    f"当前 {valid_nodes_count} 个，本批 {len(to_test_ids)} 个..."
+                ),
+            )
+            test_multiple_nodes(to_test_ids)
         
         is_connecting = False
         
@@ -1146,7 +1179,7 @@ def maintain_valid_nodes(force: bool = False) -> str:
                     auto_switch_node()
 
         valid_nodes_count = len([n for n in merged if n.get("probe_status") == "available"])
-        message = f"Fetched {len(candidates)} nodes. Tested first 10 nodes."
+        message = f"Fetched {len(candidates)} nodes. Tested {tested_total} nodes. Valid nodes: {valid_nodes_count}/{target_valid_nodes}."
         set_state(
             last_check_at=time.time(),
             last_check_message=message,
