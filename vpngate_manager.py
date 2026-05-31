@@ -4,6 +4,7 @@ from __future__ import annotations
 import base64
 import csv
 import json
+import mimetypes
 import os
 import queue
 import re
@@ -55,6 +56,7 @@ CONFIG_DIR = DATA_DIR / "configs"
 NODES_FILE = DATA_DIR / "nodes.json"
 STATE_FILE = DATA_DIR / "state.json"
 AUTH_FILE = DATA_DIR / "vpngate_auth.txt"
+FRONTEND_DIST_DIR = Path(os.environ["FRONTEND_DIST_DIR"]).resolve() if os.environ.get("FRONTEND_DIST_DIR") else ROOT_DIR / "frontend_dist"
 
 lock = threading.RLock()
 active_sessions: dict[str, float] = {}
@@ -134,6 +136,15 @@ def read_json(path: Path, default: Any) -> Any:
             return json.loads(path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
             return default
+
+def get_frontend_dist_dir() -> Path | None:
+    for candidate in (FRONTEND_DIST_DIR, ROOT_DIR / "frontend" / "dist"):
+        try:
+            if (candidate / "index.html").is_file():
+                return candidate
+        except OSError:
+            continue
+    return None
 
 import hashlib
 import random
@@ -3195,9 +3206,37 @@ class Handler(BaseHTTPRequestHandler):
     def send_json(self, data: Any, status: HTTPStatus = HTTPStatus.OK) -> None:
         self.send_bytes(json.dumps(data, ensure_ascii=False).encode("utf-8"), "application/json; charset=utf-8", status)
 
+    def send_frontend_file(self, effective_path: str) -> bool:
+        dist_dir = get_frontend_dist_dir()
+        if dist_dir is None:
+            return False
+
+        rel_path = "index.html" if effective_path in ("/", "/index.html") else effective_path.lstrip("/")
+        try:
+            base_dir = dist_dir.resolve()
+            file_path = (dist_dir / rel_path).resolve()
+            file_path.relative_to(base_dir)
+        except (OSError, ValueError):
+            return False
+
+        if not file_path.is_file():
+            return False
+
+        content_type = mimetypes.guess_type(file_path.name)[0] or "application/octet-stream"
+        if file_path.name == "index.html":
+            content_type = "text/html; charset=utf-8"
+        elif content_type.startswith("text/"):
+            content_type = f"{content_type}; charset=utf-8"
+        self.send_bytes(file_path.read_bytes(), content_type)
+        return True
+
     def do_GET(self) -> None:
         effective_path = self.validate_path()
         if effective_path == "": return
+
+        if effective_path in ("/", "/index.html") or effective_path.startswith("/assets/"):
+            if self.send_frontend_file(effective_path):
+                return
         
         if not self.is_authorized():
             if effective_path in ("/", "/index.html"):

@@ -54,6 +54,21 @@ docker compose down
 
 Docker 部署需要 Linux 主机提供 `/dev/net/tun`，并授予容器 `NET_ADMIN` 权限；仓库中的 `docker-compose.yml` 已包含这些配置。
 
+### 🧩 项目结构
+
+* `vpngate_manager.py`：Python API、OpenVPN 节点管理、Web 静态文件服务
+* `proxy_server.py`：HTTP/SOCKS5 本地代理网关
+* `vpn_utils.py`：节点解析、延迟检测、IP 信息补充
+* `frontend/`：Vite + React 静态 SPA，构建产物由 Python 服务托管
+
+前端本地构建：
+
+```bash
+cd frontend
+pnpm install
+pnpm build
+```
+
 ---
 
 ### ⚙️ 系统架构
@@ -138,3 +153,18 @@ docker compose down
 ```
 
 Docker deployment requires a Linux host with `/dev/net/tun` and `NET_ADMIN` privileges for the container. The provided `docker-compose.yml` already includes these settings.
+
+### 🧩 Project Structure
+
+* `vpngate_manager.py`: Python API, OpenVPN node management, and static Web serving
+* `proxy_server.py`: local HTTP/SOCKS5 proxy gateway
+* `vpn_utils.py`: node parsing, latency checks, and IP metadata enrichment
+* `frontend/`: Vite + React static SPA served by the Python process
+
+Build the frontend locally:
+
+```bash
+cd frontend
+pnpm install
+pnpm build
+```

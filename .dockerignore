@@ -1,0 +1,12 @@
+.git
+.env
+.env.local
+.pnpm-store
+vpn_data
+vpngate_data
+logs
+__pycache__
+*.pyc
+frontend/node_modules
+frontend/dist
+frontend/.vite

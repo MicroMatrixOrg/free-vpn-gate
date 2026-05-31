@@ -1,3 +1,15 @@
+FROM node:22-bookworm-slim AS frontend
+
+WORKDIR /app/frontend
+
+RUN corepack enable
+
+COPY frontend/package.json frontend/pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile
+
+COPY frontend/ ./
+RUN pnpm build
+
 FROM ubuntu:22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
@@ -17,11 +29,13 @@ RUN apt-get update -q && \
 WORKDIR /opt/micromatrix-vpn
 
 COPY vpngate_manager.py proxy_server.py vpn_utils.py ./
+COPY --from=frontend /app/frontend/dist ./frontend_dist
 
 # Data directory for persistent storage (nodes, config, logs, auth)
 RUN mkdir -p /data
 
 ENV VPNGATE_DATA_DIR=/data
+ENV FRONTEND_DIST_DIR=/opt/micromatrix-vpn/frontend_dist
 ENV LOCAL_PROXY_HOST=127.0.0.1
 ENV LOCAL_PROXY_PORT=7928
 ENV UI_HOST=0.0.0.0
