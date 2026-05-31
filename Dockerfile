@@ -28,7 +28,7 @@ RUN apt-get update -q && \
 
 WORKDIR /opt/micromatrix-vpn
 
-COPY vpngate_manager.py proxy_server.py vpn_utils.py ./
+COPY server/ ./server/
 COPY --from=frontend /app/frontend/dist ./frontend_dist
 
 # Data directory for persistent storage (nodes, config, logs, auth)
@@ -44,4 +44,4 @@ ENV UI_USERNAME=
 ENV UI_PASSWORD=
 ENV UI_SECRET_PATH=
 
-CMD ["python3", "vpngate_manager.py"]
+CMD ["python3", "server/vpngate_manager.py"]
